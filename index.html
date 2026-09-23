@@ -76,7 +76,7 @@
     아직 하나도 없고, "지도를 입체로 기울여서 지형이 실제로 튀어나오게 보이면 어떤 느낌인지"만 빠르게 보기 위한 것입니다.
     실제 QGIS 지형 데이터가 아니라 Mapbox가 기본 제공하는 전 세계 고도 데이터(진짜 표고 기반)로 지형을 세웠고, 건물도 높이대로 입체로 세웠습니다.
     시점 회전은 아래 "회전" 버튼을 쓰시거나, <b>마우스 휠(가운데) 버튼을 누른 채 드래그</b>하면 스케치업처럼 자유롭게 돌아갑니다. <b>Shift + 휠버튼 드래그</b>는 회전 대신 화면을 이동시킵니다(오른쪽 버튼 드래그·두 손가락 드래그도 계속 됩니다).
-    아래 <b>"드론 비행"</b>은 지점들을 자동으로 순회하며 카메라가 날아다니는 연출입니다. <b>인천계양은 실제로 조사한 6개 단지</b>(엘리움·박촌 풍림아이원·코아루 센트럴파크·효성해링턴 플레이스·힐스테이트 자이 계양·롯데캐슬 파크시티)를 순서대로 도는 실제 좌표이며, 롯데캐슬 파크시티는 미착공이라 설계 스펙 기반 근사 매스, 엘리움은 정확한 위치가 아직 미확정입니다. <b>부산·전국은 아직 실제 조사·순위 데이터가 아니라 화면 데모용 샘플 좌표</b>입니다.
+    아래 <b>"드론 비행"</b>은 지점들을 자동으로 순회하며 카메라가 날아다니는 연출입니다. <b>인천계양은 실제로 조사한 6개 단지</b>(엘리움·박촌 풍림아이원·코아루 센트럴파크·효성해링턴 플레이스·힐스테이트 자이 계양·롯데캐슬 파크시티)를 순서대로 도는 실제 좌표이며, 롯데캐슬 파크시티만 미착공이라 설계 스펙 기반 근사 매스로 표시했습니다. <b>부산·전국은 아직 실제 조사·순위 데이터가 아니라 화면 데모용 샘플 좌표</b>입니다.
   </div>
 
   <div id="controls">
@@ -135,6 +135,10 @@
 
   var DEFAULT_EXAG = 1.8;
 
+  // 우리가 실제로 조사한(브이월드 실측 데이터) 아파트 매스 색 — 기본 회색 건물(#cfc6b8)과 뚜렷이 구분되도록
+  // 채도 높은 테라코타 톤으로 지정. 이전 "#b98a5e"는 회색·지형 배경과 비슷해 눈에 잘 안 띈다는 피드백을 반영.
+  var REAL_APT_COLOR = "#c1440e";
+
   var VIEWS = {
     incheon: { center: [126.741, 37.544], zoom: 14.2, pitch: 62, bearing: -18 },
     busan:   { center: [128.874, 35.121], zoom: 14.2, pitch: 62, bearing: -18 },
@@ -146,9 +150,8 @@
   // 부산·전국은 아직 실제 데이터가 없어 이전과 같은 데모용 샘플 좌표를 그대로 둡니다(배너에도 명시).
   var HOTSPOTS = {
     incheon: [
-      // 1) 인천 계양 엘리움(A21) — 정확한 필지 좌표를 아직 확인하지 못해, 인천계양 기본 화면 중심(동네 대략 위치)으로
-      //    임시로 잡았습니다. 정확한 주소를 알려주시면 정밀 좌표로 교체하겠습니다.
-      { name: "인천 계양 엘리움 (A21, 위치 미확정)", center: [126.741, 37.544], zoom: 15.3, pitch: 66, bearing: -40 },
+      // 1) 인천 계양 엘리움(A21) — 인천광역시 계양구 병방동 64-2번지 일원(브이월드 주소 좌표변환 API로 확인한 정확한 필지 좌표)
+      { name: "인천 계양 엘리움 (A21)", center: [126.75265, 37.54733], zoom: 15.3, pitch: 66, bearing: -40 },
       // 2) 박촌역 부근 — 박촌 풍림아이원(브이월드 실제 건물 데이터 기준 중심)
       { name: "박촌역 부근 (박촌 풍림아이원)", center: [126.7465, 37.5570], zoom: 15.3, pitch: 66, bearing: 20 },
       // 3) 임학역 부근 — 인천 계양 코아루 센트럴파크(브이월드 실제 건물 데이터 기준 중심)
@@ -224,6 +227,26 @@
           type: "Feature",
           properties: { floors: floors, height: floors * 3 },
           geometry: { type: "Polygon", coordinates: [ring] }
+        };
+      })
+    };
+  }
+
+  // 줌을 아무리 멀리 빼도(마우스 휠로 계속 뒤로 밀어도) 실제 조사한 건물이 "화면 픽셀 크기로" 계속 보이게
+  // 하기 위한 점(포인트) 레이어용 데이터. 3D 매스(fill-extrusion)는 줌아웃하면 지리적 크기가 그대로 줄어들어서
+  // 결국 몇 미터짜리 건물 폭이 1픽셀도 안 되게 작아져 안 보이는데, circle 레이어의 반지름은 "화면 픽셀" 단위라
+  // 줌과 무관하게 항상 같은 크기로 보인다 — 이게 실제로 보장되는 방식.
+  function buildCentroidPointsGeoJSON(raw){
+    return {
+      type: "FeatureCollection",
+      features: raw.map(function(item){
+        var ring = item[1];
+        var sx = 0, sy = 0;
+        for (var i = 0; i < ring.length; i++) { sx += ring[i][0]; sy += ring[i][1]; }
+        return {
+          type: "Feature",
+          properties: {},
+          geometry: { type: "Point", coordinates: [sx / ring.length, sy / ring.length] }
         };
       })
     };
@@ -451,12 +474,12 @@
           type: "fill-extrusion",
           minzoom: 0, // 아주 멀리 빠져도(전국 보기 수준까지) 계속 보이게 — GeoJSON 소스라 줌 제한 없이 그릴 수 있다.
           paint: {
-            "fill-extrusion-color": "#b98a5e", // 실제 데이터 건물은 살짝 다른 색으로 구분(향후 스케치업 교체 전까지)
+            "fill-extrusion-color": REAL_APT_COLOR, // 실제 조사 데이터 건물은 눈에 띄는 테라코타색으로 구분
             // 많이 멀리서 보면(줌아웃) 건물이 실제 높이 그대로라 너무 작아 보여서, 줌이 낮을수록 높이를
             // 훨씬 더 크게 부풀려 "건물이 꽉 들어차 보이는" 느낌을 주고, 가까이 가면(줌 14+) 실제 높이로 돌아온다.
             "fill-extrusion-height": ["*", ["get", "height"], ["interpolate", ["linear"], ["zoom"], 5, 40, 9, 8, 14, 1]],
             "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": 0.92
+            "fill-extrusion-opacity": 1
           }
         }, labelLayerId || undefined);
       }
@@ -476,10 +499,10 @@
           type: "fill-extrusion",
           minzoom: 0,
           paint: {
-            "fill-extrusion-color": "#b98a5e",
+            "fill-extrusion-color": REAL_APT_COLOR,
             "fill-extrusion-height": ["*", ["get", "height"], ["interpolate", ["linear"], ["zoom"], 5, 40, 9, 8, 14, 1]],
             "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": 0.92
+            "fill-extrusion-opacity": 1
           }
         }, labelLayerId || undefined);
       }
@@ -516,6 +539,52 @@
         });
         map.on("mouseenter", "lottecastle-approx", function(){ map.getCanvas().style.cursor = "pointer"; });
         map.on("mouseleave", "lottecastle-approx", function(){ map.getCanvas().style.cursor = ""; });
+      }
+
+      // 4-1-d) 줌아웃 마커 — 위 3D 매스들과 같은 실제 건물 데이터의 중심점을 "고정 픽셀 크기" 점으로 표시.
+      //        인천계양 기본 화면에서 마우스 휠을 아무리 많이 뒤로 밀어도(전국 수준까지) 계속 점으로 보인다.
+      if (!map.getSource("apt-markers")) {
+        map.addSource("apt-markers", {
+          type: "geojson",
+          data: buildCentroidPointsGeoJSON(GYEYANG_APT_TOWERS_RAW.concat(OTHER_APT_TOWERS_RAW))
+        });
+      }
+      if (!map.getLayer("apt-markers")) {
+        map.addLayer({
+          id: "apt-markers",
+          source: "apt-markers",
+          type: "circle",
+          paint: {
+            "circle-radius": 3.5,
+            "circle-color": REAL_APT_COLOR,
+            "circle-stroke-width": 1,
+            "circle-stroke-color": "#ffffff",
+            // 가까이 가면(줌 12+) 3D 매스가 충분히 크게 보이니 점은 자연스럽게 옅어지도록.
+            "circle-opacity": ["interpolate", ["linear"], ["zoom"], 0, 1, 11, 1, 13, 0],
+            "circle-stroke-opacity": ["interpolate", ["linear"], ["zoom"], 0, 1, 11, 1, 13, 0]
+          }
+        });
+      }
+      if (!map.getSource("lottecastle-markers")) {
+        map.addSource("lottecastle-markers", {
+          type: "geojson",
+          data: buildCentroidPointsGeoJSON(LOTTE_CASTLE_APPROX_RAW)
+        });
+      }
+      if (!map.getLayer("lottecastle-markers")) {
+        map.addLayer({
+          id: "lottecastle-markers",
+          source: "lottecastle-markers",
+          type: "circle",
+          paint: {
+            "circle-radius": 3.5,
+            "circle-color": "#7f97b8",
+            "circle-stroke-width": 1,
+            "circle-stroke-color": "#ffffff",
+            "circle-opacity": ["interpolate", ["linear"], ["zoom"], 0, 1, 11, 1, 13, 0],
+            "circle-stroke-opacity": ["interpolate", ["linear"], ["zoom"], 0, 1, 11, 1, 13, 0]
+          }
+        });
       }
 
       // 4-2) 위 사각 범위들 안쪽은 기본(회색) 3D 건물을 꺼서, 같은 건물이 회색과 겹쳐 보이지 않게 한다.
