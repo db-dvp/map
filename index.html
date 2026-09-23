@@ -75,7 +75,7 @@
     이건 <b>실제 사이트가 아니라 배경 스타일만 확인하는 3D 시안</b>입니다 — 마커·팝업·줌·비교표 연동 같은 지금 기능은
     아직 하나도 없고, "지도를 입체로 기울여서 지형이 실제로 튀어나오게 보이면 어떤 느낌인지"만 빠르게 보기 위한 것입니다.
     실제 QGIS 지형 데이터가 아니라 Mapbox가 기본 제공하는 전 세계 고도 데이터(진짜 표고 기반)로 지형을 세웠고, 건물도 높이대로 입체로 세웠습니다.
-    시점 회전은 아래 "회전" 버튼을 쓰시거나, 마우스 오른쪽 버튼(또는 두 손가락)으로 드래그하면 됩니다.
+    시점 회전은 아래 "회전" 버튼을 쓰시거나, <b>마우스 휠(가운데) 버튼을 누른 채 드래그</b>하면 스케치업처럼 자유롭게 돌아갑니다 (오른쪽 버튼 드래그·두 손가락 드래그도 계속 됩니다).
     아래 <b>"드론 비행"</b>은 예시 지점 4곳을 자동으로 순회하며 카메라가 날아다니는 연출이고, <b>실제 조사·순위 데이터가 아니라 화면 데모용 샘플 좌표</b>입니다.
   </div>
 
@@ -191,6 +191,51 @@
       antialias: true
     });
     map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), "top-right");
+
+    // ---- 마우스 휠(가운데) 버튼 드래그로 회전 (스케치업 오빗 방식) ----
+    (function(){
+      var canvas = map.getCanvasContainer();
+      var dragging = false;
+      var lastX = 0, lastY = 0;
+      var ROTATE_SENSITIVITY = 0.28; // 좌우 이동량 -> 방위각(도)
+      var PITCH_SENSITIVITY = 0.28;  // 상하 이동량 -> 기울기(도)
+
+      canvas.addEventListener("mousedown", function(e){
+        if (e.button !== 1) return; // 1 = 휠(가운데) 버튼
+        e.preventDefault();
+        dragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        canvas.style.cursor = "grabbing";
+        if (droneActive) stopDroneTour();
+        if (autoRotateActive) setAutoRotate(false);
+      });
+
+      window.addEventListener("mousemove", function(e){
+        if (!dragging) return;
+        var dx = e.clientX - lastX;
+        var dy = e.clientY - lastY;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        var nextBearing = map.getBearing() - dx * ROTATE_SENSITIVITY;
+        var nextPitch = Math.max(0, Math.min(85, map.getPitch() - dy * PITCH_SENSITIVITY));
+        map.jumpTo({ bearing: nextBearing, pitch: nextPitch });
+      });
+
+      function endDrag(e){
+        if (!dragging) return;
+        if (e && e.type === "mouseup" && e.button !== 1) return;
+        dragging = false;
+        canvas.style.cursor = "";
+      }
+      window.addEventListener("mouseup", endDrag);
+      window.addEventListener("blur", function(){ dragging = false; canvas.style.cursor = ""; });
+
+      // 가운데 버튼을 눌렀다 뗄 때 브라우저 기본 동작(자동 스크롤 아이콘, 새 탭 열기 등) 막기
+      canvas.addEventListener("auxclick", function(e){
+        if (e.button === 1) e.preventDefault();
+      });
+    })();
 
     // 지도 로드 후: (1) 실제 표고 데이터로 지형을 입체로 세우고,
     // (2) 하늘(대기) 레이어를 추가해서 원근감·분위기를 살리고,
