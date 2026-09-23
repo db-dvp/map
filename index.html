@@ -75,7 +75,7 @@
     이건 <b>실제 사이트가 아니라 배경 스타일만 확인하는 3D 시안</b>입니다 — 마커·팝업·줌·비교표 연동 같은 지금 기능은
     아직 하나도 없고, "지도를 입체로 기울여서 지형이 실제로 튀어나오게 보이면 어떤 느낌인지"만 빠르게 보기 위한 것입니다.
     실제 QGIS 지형 데이터가 아니라 Mapbox가 기본 제공하는 전 세계 고도 데이터(진짜 표고 기반)로 지형을 세웠고, 건물도 높이대로 입체로 세웠습니다.
-    시점 회전은 아래 "회전" 버튼을 쓰시거나, <b>마우스 휠(가운데) 버튼을 누른 채 드래그</b>하면 스케치업처럼 자유롭게 돌아갑니다 (오른쪽 버튼 드래그·두 손가락 드래그도 계속 됩니다).
+    시점 회전은 아래 "회전" 버튼을 쓰시거나, <b>마우스 휠(가운데) 버튼을 누른 채 드래그</b>하면 스케치업처럼 자유롭게 돌아갑니다. <b>Shift + 휠버튼 드래그</b>는 회전 대신 화면을 이동시킵니다(오른쪽 버튼 드래그·두 손가락 드래그도 계속 됩니다).
     아래 <b>"드론 비행"</b>은 예시 지점 4곳을 자동으로 순회하며 카메라가 날아다니는 연출이고, <b>실제 조사·순위 데이터가 아니라 화면 데모용 샘플 좌표</b>입니다.
   </div>
 
@@ -217,9 +217,15 @@
         var dy = e.clientY - lastY;
         lastX = e.clientX;
         lastY = e.clientY;
-        var nextBearing = map.getBearing() - dx * ROTATE_SENSITIVITY;
-        var nextPitch = Math.max(0, Math.min(85, map.getPitch() - dy * PITCH_SENSITIVITY));
-        map.jumpTo({ bearing: nextBearing, pitch: nextPitch });
+        if (e.shiftKey) {
+          // Shift + 휠버튼 드래그: 회전 대신 화면 이동(좌클릭 드래그와 동일한 느낌)
+          map.panBy([-dx, -dy], { duration: 0 });
+        } else {
+          // 휠버튼만 드래그: 회전 (기존 대비 방향 반전)
+          var nextBearing = map.getBearing() + dx * ROTATE_SENSITIVITY;
+          var nextPitch = Math.max(0, Math.min(85, map.getPitch() + dy * PITCH_SENSITIVITY));
+          map.jumpTo({ bearing: nextBearing, pitch: nextPitch });
+        }
       });
 
       function endDrag(e){
