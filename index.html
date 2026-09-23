@@ -176,3 +176,40 @@
           center: v.center,
           zoom: v.zoom,
           pitch: isTilted ? v.pitch : 0,
+          bearing: isTilted ? v.bearing : 0,
+          essential: true
+        });
+      });
+    });
+
+    // 평면/입체 토글
+    var flatBtn = document.getElementById("flatBtn");
+    var tiltBtn = document.getElementById("tiltBtn");
+    function setTilted(tilted){
+      isTilted = tilted;
+      flatBtn.classList.toggle("active", !tilted);
+      tiltBtn.classList.toggle("active", tilted);
+      var v = VIEWS[currentViewKey];
+      map.easeTo({
+        pitch: tilted ? v.pitch : 0,
+        bearing: tilted ? v.bearing : 0,
+        duration: 800
+      });
+    }
+    flatBtn.addEventListener("click", function(){ setTilted(false); });
+    tiltBtn.addEventListener("click", function(){ setTilted(true); });
+
+    // 지형 강조 정도
+    document.querySelectorAll(".exag-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        document.querySelectorAll(".exag-btn").forEach(function(b){ b.classList.remove("active"); });
+        btn.classList.add("active");
+        var exag = parseFloat(btn.getAttribute("data-exag"));
+        map.setTerrain({ source: "mapbox-dem", exaggeration: exag });
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
