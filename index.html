@@ -6,6 +6,7 @@
 <title>지도 엔진 시안 — 콘타 스타일 3D (Mapbox, 배경만)</title>
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
 <style>
   :root{
     --paper:#f5f1e9; --paper-raised:#ffffff; --ink:#202a5d; --ink-soft:#5c6790;
@@ -188,6 +189,15 @@
       })
     };
   }
+
+  // 위 실제 아파트 데이터를 가져온 사각 범위 — 이 안쪽은 기본(회색) 3D 건물을 끄고
+  // 실제 데이터(갈색)만 보이게 해서 같은 건물이 두 겹으로 겹쳐 보이는 걸 막는다.
+  var GYEYANG_APT_MASK = {
+    type: "Polygon",
+    coordinates: [[
+      [126.734, 37.538], [126.750, 37.538], [126.750, 37.550], [126.734, 37.550], [126.734, 37.538]
+    ]]
+  };
 
   var currentViewKey = "incheon";
   var isTilted = true;
@@ -383,8 +393,6 @@
       }
 
       // 4-1) 인천계양 A21 인근 실제 아파트 건물(국토부 도로명주소 건물, 지상 8층 이상) 레이어 추가
-      //      - 기본 3D 건물(위 3d-buildings) 위에 겹쳐 올리는 방식 — 이 구역은 한국 OSM 데이터에 건물 높이 정보가
-      //        거의 없어서 기본 레이어와 겹쳐 보일 위험은 낮지만, 전체범위 확장 때 저층 건물까지 채우면서 함께 정리할 예정.
       //      - 줌을 멀리 빼도(minzoom 낮음) 계속 보이도록 설정.
       if (!map.getSource("gyeyang-apt-towers")) {
         map.addSource("gyeyang-apt-towers", {
@@ -406,7 +414,70 @@
           }
         }, labelLayerId || undefined);
       }
+
+      // 4-2) 위 사각 범위 안쪽은 기본(회색) 3D 건물을 꺼서, 같은 건물이 회색+갈색으로 겹쳐 보이지 않게 한다.
+      try {
+        map.setFilter("3d-buildings", ["!", ["within", GYEYANG_APT_MASK]]);
+      } catch (e) {
+        // within 표현식 미지원 환경이면 조용히 무시(그 경우 겹쳐 보일 수 있음)
+      }
     });
+
+    // ---- 고가도로(교량) 실제 입체감: 얇은 "상판(deck)"을 만들어 진짜로 띄워서 보여준다 ----
+    // Turf.js로 다리 구간 도로 선을 얇은 띠 모양 폴리곤으로 부풀린 뒤, fill-extrusion으로 살짝 들어올린다.
+    // 브이월드 같은 별도 API 없이, 이미 불러온 지도 자체의 도로 데이터(structure=bridge)만으로 계산한다.
+    var BRIDGE_DECK_HEIGHT = 9; // 대략적인 고가도로 높이(m) — 실측치가 아닌 시각적 근사치
+    var bridgeDeckUpdateScheduled = false;
+
+    function refreshBridgeDecks(){
+      if (!window.turf || typeof map.querySourceFeatures !== "function") return;
+      try {
+        var feats = map.querySourceFeatures("composite", {
+          sourceLayer: "road",
+          filter: ["==", ["get", "structure"], "bridge"]
+        });
+        if (!feats || !feats.length) return;
+        var polys = [];
+        feats.forEach(function(f){
+          if (!f.geometry) return;
+          try {
+            // 도로 폭 정도로 살짝만 부풀려서 "상판" 느낌의 얇은 띠를 만든다.
+            var buffered = turf.buffer(f, 0.006, { units: "kilometers" });
+            if (buffered) polys.push(buffered);
+          } catch (e) { /* 타일 경계에서 깨진 선 등은 건너뛴다 */ }
+        });
+        if (!polys.length) return;
+        var fc = { type: "FeatureCollection", features: polys };
+        if (!map.getSource("bridge-decks")) {
+          map.addSource("bridge-decks", { type: "geojson", data: fc });
+          map.addLayer({
+            id: "bridge-decks",
+            source: "bridge-decks",
+            type: "fill-extrusion",
+            paint: {
+              "fill-extrusion-color": "#e7e0d2",
+              "fill-extrusion-height": BRIDGE_DECK_HEIGHT,
+              "fill-extrusion-base": BRIDGE_DECK_HEIGHT - 1.2,
+              "fill-extrusion-opacity": 0.95
+            }
+          });
+        } else {
+          map.getSource("bridge-decks").setData(fc);
+        }
+      } catch (e) { /* querySourceFeatures 실패 시(타일 미로딩 등) 조용히 무시 */ }
+    }
+
+    function scheduleBridgeDeckRefresh(){
+      if (bridgeDeckUpdateScheduled) return;
+      bridgeDeckUpdateScheduled = true;
+      setTimeout(function(){
+        bridgeDeckUpdateScheduled = false;
+        refreshBridgeDecks();
+      }, 400);
+    }
+
+    map.once("idle", scheduleBridgeDeckRefresh); // 최초 타일 로딩 완료 후 한 번
+    map.on("moveend", scheduleBridgeDeckRefresh); // 이후엔 카메라가 움직일 때마다 갱신(디바운스 적용)
 
     // 위치 버튼
     document.querySelectorAll(".view-btn").forEach(function(btn){
