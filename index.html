@@ -40,6 +40,33 @@
   #setupNotice.hidden{display:none;}
   #setupNotice .box{max-width:440px;font-size:.88rem;line-height:1.6;}
   #setupNotice code{display:block;background:rgba(0,0,0,.06);padding:8px 10px;border-radius:6px;margin:10px 0;text-align:left;font-size:.78rem;word-break:break-all;}
+
+  #droneOverlay{
+    position:absolute;top:16px;left:50%;
+    transform:translateX(-50%) translateY(-8px);
+    z-index:15;background:rgba(32,42,93,.88);color:#fff;
+    padding:9px 18px;border-radius:999px;
+    font-size:.78rem;font-weight:600;letter-spacing:.02em;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+    opacity:0;pointer-events:none;
+    transition:opacity .35s ease, transform .35s ease;
+    box-shadow:0 6px 18px rgba(32,42,93,.28);
+    text-align:center;white-space:nowrap;
+  }
+  #droneOverlay.visible{opacity:1;transform:translateX(-50%) translateY(0);}
+  #droneOverlayDots{display:flex;gap:5px;}
+  .drone-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.35);transition:background .25s ease;}
+  .drone-dot.active{background:#ff9a44;}
+  .drone-marker{
+    width:26px;height:26px;border-radius:50%;
+    border:3px solid #ff7a1a;background:rgba(255,122,26,.18);
+    box-shadow:0 0 0 6px rgba(255,122,26,.15);
+    animation:droneMarkerPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes droneMarkerPulse{
+    0%,100%{ transform:scale(1); box-shadow:0 0 0 6px rgba(255,122,26,.15); }
+    50%{ transform:scale(1.12); box-shadow:0 0 0 10px rgba(255,122,26,.08); }
+  }
 </style>
 </head>
 <body>
@@ -49,6 +76,7 @@
     아직 하나도 없고, "지도를 입체로 기울여서 지형이 실제로 튀어나오게 보이면 어떤 느낌인지"만 빠르게 보기 위한 것입니다.
     실제 QGIS 지형 데이터가 아니라 Mapbox가 기본 제공하는 전 세계 고도 데이터(진짜 표고 기반)로 지형을 세웠고, 건물도 높이대로 입체로 세웠습니다.
     시점 회전은 아래 "회전" 버튼을 쓰시거나, 마우스 오른쪽 버튼(또는 두 손가락)으로 드래그하면 됩니다.
+    아래 <b>"드론 비행"</b>은 예시 지점 4곳을 자동으로 순회하며 카메라가 날아다니는 연출이고, <b>실제 조사·순위 데이터가 아니라 화면 데모용 샘플 좌표</b>입니다.
   </div>
 
   <div id="controls">
@@ -75,10 +103,19 @@
       <button type="button" id="rotateRightBtn">↻ 오른쪽으로</button>
       <button type="button" id="northBtn">⇧ 북쪽으로</button>
     </div>
+    <div class="control-group">
+      <span class="group-label">자동 연출</span>
+      <button type="button" id="droneBtn">▶ 드론 비행 시작</button>
+      <button type="button" id="autoRotateBtn">자동 회전</button>
+    </div>
   </div>
 
   <div id="mapWrap">
     <div id="map"></div>
+    <div id="droneOverlay">
+      <span id="droneOverlayText"></span>
+      <div id="droneOverlayDots"></div>
+    </div>
     <div id="setupNotice">
       <div class="box">
         Mapbox 액세스 토큰이 아직 입력되지 않았습니다.<br><br>
@@ -104,8 +141,42 @@
     korea:   { center: [127.9, 36.2],     zoom: 6.5,  pitch: 45, bearing: 0 }
   };
 
+  // "드론 비행" 연출용 예시 지점 — 실제 조사·순위 데이터가 아니라
+  // 각 지역 중심 근처에 임의로 잡은 데모용 샘플 좌표입니다 (배너에도 명시).
+  var HOTSPOTS = {
+    incheon: [
+      { name: "예시 지점 A", center: [126.7395, 37.5730], zoom: 15.3, pitch: 66, bearing: -40 },
+      { name: "예시 지점 B", center: [126.7302, 37.5680], zoom: 15.3, pitch: 66, bearing: 30 },
+      { name: "예시 지점 C", center: [126.7410, 37.5645], zoom: 15.3, pitch: 66, bearing: 110 },
+      { name: "예시 지점 D", center: [126.7280, 37.5745], zoom: 15.3, pitch: 66, bearing: -120 }
+    ],
+    busan: [
+      { name: "예시 지점 A", center: [128.8790, 35.1240], zoom: 15.3, pitch: 66, bearing: -30 },
+      { name: "예시 지점 B", center: [128.8695, 35.1195], zoom: 15.3, pitch: 66, bearing: 60 },
+      { name: "예시 지점 C", center: [128.8805, 35.1165], zoom: 15.3, pitch: 66, bearing: 150 },
+      { name: "예시 지점 D", center: [128.8670, 35.1250], zoom: 15.3, pitch: 66, bearing: -110 }
+    ],
+    korea: [
+      { name: "예시 지점 A (수도권)", center: [126.98, 37.57], zoom: 8.2, pitch: 55, bearing: -20 },
+      { name: "예시 지점 B (부산권)", center: [129.06, 35.18], zoom: 8.2, pitch: 55, bearing: 40 },
+      { name: "예시 지점 C (대구권)", center: [128.60, 35.87], zoom: 8.2, pitch: 55, bearing: 120 },
+      { name: "예시 지점 D (광주권)", center: [126.85, 35.16], zoom: 8.2, pitch: 55, bearing: -140 }
+    ]
+  };
+
   var currentViewKey = "incheon";
   var isTilted = true;
+
+  var droneActive = false;
+  var droneIndex = 0;
+  var droneTimerId = null;
+  var droneMarker = null;
+  var DRONE_FLY_DURATION = 3200;
+  var DRONE_DWELL = 2200;
+
+  var autoRotateActive = false;
+  var autoRotateRAF = null;
+  var AUTO_ROTATE_SPEED = 0.045; // 프레임당 회전각(도) — 대략 초당 2~3도
 
   if (mapboxgl.accessToken && mapboxgl.accessToken !== "YOUR_MAPBOX_TOKEN_HERE") {
     document.getElementById("setupNotice").classList.add("hidden");
@@ -249,6 +320,119 @@
     });
     document.getElementById("northBtn").addEventListener("click", function(){
       map.easeTo({ bearing: 0, duration: 400 });
+    });
+
+    // ---- 자동 회전 (제자리에서 계속 천천히 도는 연출) ----
+    var autoRotateBtn = document.getElementById("autoRotateBtn");
+    function autoRotateStep(){
+      if (!autoRotateActive) return;
+      map.setBearing(map.getBearing() + AUTO_ROTATE_SPEED);
+      autoRotateRAF = requestAnimationFrame(autoRotateStep);
+    }
+    function setAutoRotate(on){
+      autoRotateActive = on;
+      autoRotateBtn.classList.toggle("active", on);
+      autoRotateBtn.textContent = on ? "⏹ 자동 회전 중지" : "자동 회전";
+      if (on) {
+        if (droneActive) stopDroneTour();
+        autoRotateRAF = requestAnimationFrame(autoRotateStep);
+      } else if (autoRotateRAF) {
+        cancelAnimationFrame(autoRotateRAF);
+        autoRotateRAF = null;
+      }
+    }
+    autoRotateBtn.addEventListener("click", function(){ setAutoRotate(!autoRotateActive); });
+
+    // ---- 드론 비행 (예시 지점을 자동으로 순회하며 카메라가 날아다니는 연출) ----
+    var droneBtn = document.getElementById("droneBtn");
+    var droneOverlay = document.getElementById("droneOverlay");
+    var droneOverlayText = document.getElementById("droneOverlayText");
+    var droneOverlayDots = document.getElementById("droneOverlayDots");
+
+    function createDroneMarkerEl(){
+      var el = document.createElement("div");
+      el.className = "drone-marker";
+      return el;
+    }
+
+    function updateDroneOverlay(list, idx){
+      var hotspot = list[idx];
+      droneOverlayText.textContent = "드론 비행 · " + (idx + 1) + "/" + list.length + " · " + hotspot.name;
+      droneOverlayDots.innerHTML = "";
+      list.forEach(function(_, i){
+        var dot = document.createElement("span");
+        dot.className = "drone-dot" + (i === idx ? " active" : "");
+        droneOverlayDots.appendChild(dot);
+      });
+      droneOverlay.classList.add("visible");
+    }
+
+    function goToHotspot(list, idx){
+      var h = list[idx];
+      if (!droneMarker) {
+        droneMarker = new mapboxgl.Marker({ element: createDroneMarkerEl() });
+      }
+      droneMarker.setLngLat(h.center).addTo(map);
+      updateDroneOverlay(list, idx);
+      map.flyTo({
+        center: h.center,
+        zoom: h.zoom,
+        pitch: h.pitch,
+        bearing: h.bearing,
+        duration: DRONE_FLY_DURATION,
+        essential: true
+      });
+    }
+
+    function droneTick(){
+      if (!droneActive) return;
+      var list = HOTSPOTS[currentViewKey] || HOTSPOTS.incheon;
+      goToHotspot(list, droneIndex);
+      droneTimerId = setTimeout(function(){
+        if (!droneActive) return;
+        droneIndex = (droneIndex + 1) % list.length;
+        droneTick();
+      }, DRONE_FLY_DURATION + DRONE_DWELL);
+    }
+
+    function startDroneTour(){
+      droneActive = true;
+      droneIndex = 0;
+      droneBtn.classList.add("active");
+      droneBtn.textContent = "⏹ 드론 비행 중지";
+      if (autoRotateActive) setAutoRotate(false);
+      isTilted = true;
+      tiltBtn.classList.add("active");
+      flatBtn.classList.remove("active");
+      droneTick();
+    }
+
+    function stopDroneTour(){
+      droneActive = false;
+      if (droneTimerId) { clearTimeout(droneTimerId); droneTimerId = null; }
+      droneBtn.classList.remove("active");
+      droneBtn.textContent = "▶ 드론 비행 시작";
+      droneOverlay.classList.remove("visible");
+      if (droneMarker) { droneMarker.remove(); droneMarker = null; }
+    }
+
+    droneBtn.addEventListener("click", function(){
+      if (droneActive) { stopDroneTour(); } else { startDroneTour(); }
+    });
+
+    // 사용자가 직접 지도를 드래그하거나 다른 위치/시점 버튼을 누르면 자동 연출은 멈춘다
+    map.on("dragstart", function(){
+      if (droneActive) stopDroneTour();
+      if (autoRotateActive) setAutoRotate(false);
+    });
+    document.querySelectorAll(".view-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        if (droneActive) stopDroneTour();
+        if (autoRotateActive) setAutoRotate(false);
+      });
+    });
+    flatBtn.addEventListener("click", function(){
+      if (droneActive) stopDroneTour();
     });
   }
 </script>
