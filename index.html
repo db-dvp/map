@@ -47,8 +47,8 @@
   <div id="banner">
     이건 <b>실제 사이트가 아니라 배경 스타일만 확인하는 3D 시안</b>입니다 — 마커·팝업·줌·비교표 연동 같은 지금 기능은
     아직 하나도 없고, "지도를 입체로 기울여서 지형이 실제로 튀어나오게 보이면 어떤 느낌인지"만 빠르게 보기 위한 것입니다.
-    실제 QGIS 지형 데이터가 아니라 Mapbox가 기본 제공하는 전 세계 고도 데이터(진짜 표고 기반)로 지형을 세웠습니다.
-    마우스 오른쪽 버튼(또는 두 손가락)으로 드래그하면 시점을 자유롭게 돌리고 기울일 수 있습니다.
+    실제 QGIS 지형 데이터가 아니라 Mapbox가 기본 제공하는 전 세계 고도 데이터(진짜 표고 기반)로 지형을 세웠고, 건물도 높이대로 입체로 세웠습니다.
+    시점 회전은 아래 "회전" 버튼을 쓰시거나, 마우스 오른쪽 버튼(또는 두 손가락)으로 드래그하면 됩니다.
   </div>
 
   <div id="controls">
@@ -68,6 +68,12 @@
       <button type="button" class="exag-btn" data-exag="1.0">약하게</button>
       <button type="button" class="exag-btn active" data-exag="1.8">보통</button>
       <button type="button" class="exag-btn" data-exag="2.8">강하게</button>
+    </div>
+    <div class="control-group">
+      <span class="group-label">회전</span>
+      <button type="button" id="rotateLeftBtn">↺ 왼쪽으로</button>
+      <button type="button" id="rotateRightBtn">↻ 오른쪽으로</button>
+      <button type="button" id="northBtn">⇧ 북쪽으로</button>
     </div>
   </div>
 
@@ -146,6 +152,7 @@
 
       // 3) 도면풍 색감 정리
       var layers = map.getStyle().layers || [];
+      var labelLayerId = null;
       layers.forEach(function(layer){
         var id = layer.id.toLowerCase();
         try {
@@ -158,11 +165,35 @@
             map.setLayoutProperty(layer.id, "visibility", "none"); // 자잘한 아이콘/라벨 정리
           } else if (layer.type === "fill" && id.indexOf("land") !== -1) {
             map.setPaintProperty(layer.id, "fill-color", "#f5f1e9");
+          } else if (layer.type === "line" && (id.indexOf("motorway") !== -1 || id.indexOf("trunk") !== -1)) {
+            // 고속도로·간선도로는 눈에 띄게 굵고 진한 색으로 강조
+            map.setPaintProperty(layer.id, "line-color", "#c0521f");
           } else if (layer.type === "line" && id.indexOf("road") !== -1) {
             map.setPaintProperty(layer.id, "line-color", "#c9beac");
           }
         } catch (e) { /* 레이어별로 없는 속성이면 조용히 무시 */ }
+        // 건물 3D 레이어를 라벨(글자) 레이어 바로 아래에 끼워 넣기 위해, 첫 symbol 레이어 id를 기억해둔다
+        if (!labelLayerId && layer.type === "symbol" && layer.layout && layer.layout["text-field"]) {
+          labelLayerId = layer.id;
+        }
       });
+
+      // 4) 3D 건물 (Mapbox 기본 벡터 타일의 건물 높이 데이터 사용)
+      if (!map.getLayer("3d-buildings")) {
+        map.addLayer({
+          id: "3d-buildings",
+          source: "composite",
+          "source-layer": "building",
+          type: "fill-extrusion",
+          minzoom: 13,
+          paint: {
+            "fill-extrusion-color": "#cfc6b8",
+            "fill-extrusion-height": ["coalesce", ["get", "height"], 8],
+            "fill-extrusion-base": ["coalesce", ["get", "min_height"], 0],
+            "fill-extrusion-opacity": 0.85
+          }
+        }, labelLayerId || undefined);
+      }
     });
 
     // 위치 버튼
@@ -207,6 +238,17 @@
         var exag = parseFloat(btn.getAttribute("data-exag"));
         map.setTerrain({ source: "mapbox-dem", exaggeration: exag });
       });
+    });
+
+    // 회전 버튼 (마우스 오른쪽 드래그가 불편한 경우를 위한 대안)
+    document.getElementById("rotateLeftBtn").addEventListener("click", function(){
+      map.easeTo({ bearing: map.getBearing() - 45, duration: 400 });
+    });
+    document.getElementById("rotateRightBtn").addEventListener("click", function(){
+      map.easeTo({ bearing: map.getBearing() + 45, duration: 400 });
+    });
+    document.getElementById("northBtn").addEventListener("click", function(){
+      map.easeTo({ bearing: 0, duration: 400 });
     });
   }
 </script>
