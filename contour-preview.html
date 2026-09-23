@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>지도 엔진 시안 — 콘타 스타일 (Mapbox, 배경만)</title>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f5f1e9; --paper-raised:#ffffff; --ink:#202a5d; --ink-soft:#5c6790;
+    --line:#e6ded1; --line-strong:#d3c7b2;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Pretendard","Apple SD Gothic Neo",sans-serif;background:var(--paper);color:var(--ink);}
+  #banner{
+    padding:14px 20px;background:var(--paper-raised);border-bottom:1px solid var(--line);
+    font-size:.85rem;line-height:1.55;
+  }
+  #banner b{color:#a15a1f;}
+  #banner code{background:rgba(0,0,0,.06);padding:1px 6px;border-radius:5px;}
+  #controls{
+    padding:10px 20px;background:var(--paper-raised);border-bottom:1px solid var(--line);
+    display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  }
+  #controls button{
+    border:1px solid var(--line-strong);background:var(--paper);color:var(--ink);
+    padding:7px 14px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;
+  }
+  #controls button:hover{background:var(--paper-raised);}
+  #controls button.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  #mapWrap{position:relative;height:calc(100vh - 128px);min-height:420px;}
+  #map{position:absolute;inset:0;}
+  #setupNotice{
+    position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+    background:rgba(245,241,233,.96);text-align:center;padding:24px;
+  }
+  #setupNotice.hidden{display:none;}
+  #setupNotice .box{max-width:440px;font-size:.88rem;line-height:1.6;}
+  #setupNotice code{display:block;background:rgba(0,0,0,.06);padding:8px 10px;border-radius:6px;margin:10px 0;text-align:left;font-size:.78rem;word-break:break-all;}
+</style>
+</head>
+<body>
+
+  <div id="banner">
+    이건 <b>실제 사이트가 아니라 배경 스타일만 확인하는 시안</b>입니다 — 마커·팝업·줌·비교표 연동 같은 지금 기능은
+    아직 하나도 없고, "지도가 콘타맵/도면 같은 분위기로 보이면 어떤 느낌인지"만 빠르게 보기 위한 것입니다.
+    실제 QGIS 지형 데이터가 아니라 Mapbox가 기본 제공하는 전 세계 등고선 데이터(진짜 고도 기반)를 씁니다.
+    (액세스 토큰은 이미 넣어뒀습니다 — 바로 아래 지도가 보이면 정상입니다.)
+  </div>
+
+  <div id="controls">
+    <button type="button" class="view-btn active" data-view="incheon">인천계양 보기</button>
+    <button type="button" class="view-btn" data-view="busan">부산에코델타 보기</button>
+    <button type="button" class="view-btn" data-view="korea">전국 보기</button>
+  </div>
+
+  <div id="mapWrap">
+    <div id="map"></div>
+    <div id="setupNotice">
+      <div class="box">
+        Mapbox 액세스 토큰이 아직 입력되지 않았습니다.<br><br>
+        1. mapbox.com 에서 회원가입(무료, 카드 필요 없음)<br>
+        2. 로그인 후 Account → Tokens 에서 기본 토큰 복사<br>
+        3. 이 파일을 텍스트 편집기로 열어서 아래 자리에 붙여넣기:
+        <code>mapboxgl.accessToken = "YOUR_MAPBOX_TOKEN_HERE";</code>
+        저장 후 다시 열면 지도가 보입니다.
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ↓↓↓ 여기에 대표님 Mapbox 액세스 토큰을 붙여넣으세요 (mapbox.com → Account → Tokens) ↓↓↓
+  mapboxgl.accessToken = "pk.eyJ1Ijoic3kyc3kiLCJhIjoiY211ZGVidW9rMmFrYTJ4cG1hZ3A4cmhuaiJ9.6_gsdFct9YRg5zAmjidgqg";
+  // ↑↑↑ ------------------------------------------------------------------------- ↑↑↑
+
+  var VIEWS = {
+    incheon: { center: [126.735, 37.570], zoom: 13 },
+    busan:   { center: [128.874, 35.121], zoom: 13 },
+    korea:   { center: [127.9, 36.2], zoom: 6.3 }
+  };
+
+  if (mapboxgl.accessToken && mapboxgl.accessToken !== "YOUR_MAPBOX_TOKEN_HERE") {
+    document.getElementById("setupNotice").classList.add("hidden");
+
+    var map = new mapboxgl.Map({
+      container: "map",
+      style: "mapbox://styles/mapbox/outdoors-v12", // 등고선·음영기복(hillshade)이 기본 포함된 스타일
+      center: VIEWS.incheon.center,
+      zoom: VIEWS.incheon.zoom,
+      pitch: 0
+    });
+    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+    // 지도 로드 후, 도면/렌더링 같은 분위기가 나도록 등고선·음영기복만 강조하고
+    // 나머지(도로 색·라벨 등)는 차분하게 눌러준다. Outdoors 스타일의 실제 레이어 이름은
+    // Mapbox 버전에 따라 달라질 수 있어서, 이름에 "contour"/"hillshade"가 들어간 레이어를
+    // 찾아서 일괄 적용하는 방식으로 짰다(스타일이 바뀌어도 최대한 안전하게 동작).
+    map.on("style.load", function(){
+      var layers = map.getStyle().layers || [];
+      layers.forEach(function(layer){
+        var id = layer.id.toLowerCase();
+        try {
+          if (id.indexOf("contour") !== -1 && layer.type === "line") {
+            map.setPaintProperty(layer.id, "line-color", "#6b5a3f");
+            map.setPaintProperty(layer.id, "line-opacity", 0.55);
+          } else if (id.indexOf("hillshade") !== -1) {
+            map.setPaintProperty(layer.id, "hillshade-exaggeration", 0.35);
+          } else if (layer.type === "symbol" && (id.indexOf("poi") !== -1 || id.indexOf("transit") !== -1)) {
+            map.setLayoutProperty(layer.id, "visibility", "none"); // 자잘한 아이콘/라벨 정리
+          } else if (layer.type === "fill" && id.indexOf("land") !== -1) {
+            map.setPaintProperty(layer.id, "fill-color", "#f5f1e9");
+          } else if (layer.type === "line" && id.indexOf("road") !== -1) {
+            map.setPaintProperty(layer.id, "line-color", "#c9beac");
+          }
+        } catch (e) { /* 레이어별로 없는 속성이면 조용히 무시 */ }
+      });
+    });
+
+    document.querySelectorAll(".view-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        document.querySelectorAll(".view-btn").forEach(function(b){ b.classList.remove("active"); });
+        btn.classList.add("active");
+        var v = VIEWS[btn.getAttribute("data-view")];
+        map.flyTo({ center: v.center, zoom: v.zoom, essential: true });
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
