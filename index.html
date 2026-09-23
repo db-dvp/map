@@ -404,12 +404,12 @@
           id: "gyeyang-apt-towers",
           source: "gyeyang-apt-towers",
           type: "fill-extrusion",
-          minzoom: 9,
+          minzoom: 0, // 아주 멀리 빠져도(전국 보기 수준까지) 계속 보이게 — GeoJSON 소스라 줌 제한 없이 그릴 수 있다.
           paint: {
             "fill-extrusion-color": "#b98a5e", // 실제 데이터 건물은 살짝 다른 색으로 구분(향후 스케치업 교체 전까지)
             // 많이 멀리서 보면(줌아웃) 건물이 실제 높이 그대로라 너무 작아 보여서, 줌이 낮을수록 높이를
-            // 몇 배 부풀려 "건물이 꽉 들어차 보이는" 느낌을 주고, 가까이 가면(줌 14+) 실제 높이로 돌아온다.
-            "fill-extrusion-height": ["*", ["get", "height"], ["interpolate", ["linear"], ["zoom"], 9, 5, 14, 1]],
+            // 훨씬 더 크게 부풀려 "건물이 꽉 들어차 보이는" 느낌을 주고, 가까이 가면(줌 14+) 실제 높이로 돌아온다.
+            "fill-extrusion-height": ["*", ["get", "height"], ["interpolate", ["linear"], ["zoom"], 5, 40, 9, 8, 14, 1]],
             "fill-extrusion-base": 0,
             "fill-extrusion-opacity": 0.92
           }
