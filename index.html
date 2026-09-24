@@ -72,16 +72,56 @@
     0%,100%{ transform:scale(1); box-shadow:0 0 0 6px rgba(255,122,26,.15); }
     50%{ transform:scale(1.12); box-shadow:0 0 0 10px rgba(255,122,26,.08); }
   }
+
+  /* ---- 10차(2026-09-24): 인천 비교단지 마커(건물에 떠 있는 핀) + 말풍선 팝업 ---- */
+  .cmpx-marker-wrap{ position:relative; width:30px; height:44px; cursor:pointer; }
+  .cmpx-marker-pin{
+    position:absolute; top:0; left:0; width:30px; height:30px; border-radius:50%;
+    background:var(--cmpx-color,#c1440e); border:3px solid #fff;
+    box-shadow:0 3px 9px rgba(0,0,0,.4), 0 0 0 2px rgba(0,0,0,.12);
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; line-height:1; transition:transform .15s ease;
+  }
+  .cmpx-marker-wrap:hover .cmpx-marker-pin{ transform:scale(1.15); }
+  .cmpx-marker-pin::after{
+    content:""; position:absolute; top:28px; left:8px; width:0; height:0;
+    border-left:7px solid transparent; border-right:7px solid transparent;
+    border-top:14px solid var(--cmpx-color,#c1440e);
+    filter:drop-shadow(0 2px 1px rgba(0,0,0,.2));
+  }
+  .mapboxgl-popup.cmpx-popup .mapboxgl-popup-content{
+    padding:0; border-radius:16px; overflow:hidden;
+    border:3px solid #2a2118; box-shadow:0 10px 26px rgba(0,0,0,.32);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  .mapboxgl-popup.cmpx-popup .mapboxgl-popup-tip{ border-top-color:#2a2118 !important; border-bottom-color:#2a2118 !important; }
+  .mapboxgl-popup.cmpx-popup .mapboxgl-popup-close-button{ font-size:20px; color:#fff; right:4px; top:0; }
+  .sb-header{ padding:11px 32px 9px 14px; color:#fff; }
+  .sb-name{ display:block; font-size:14px; font-weight:800; line-height:1.3; }
+  .sb-age{ display:inline-block; margin-top:5px; font-size:11px; font-weight:700; padding:2px 9px; border-radius:999px; background:rgba(255,255,255,.3); }
+  .sb-body{ background:#fffaf0; padding:12px 14px 14px; }
+  .sb-sub{ font-size:11.5px; color:#7a6f5c; margin-bottom:9px; }
+  .sb-stats{ display:flex; gap:8px; margin-bottom:10px; }
+  .sb-stat{ flex:1; background:#f3ece0; border-radius:8px; padding:6px 3px; text-align:center; }
+  .sb-stat b{ display:block; font-size:13px; color:#2a2118; }
+  .sb-stat span{ font-size:9.5px; color:#8a7f6c; }
+  .sb-price{ font-size:12.5px; background:#fff; border:1.5px dashed #d8cbb0; border-radius:8px; padding:8px 10px; margin-bottom:8px; line-height:1.6; }
+  .sb-price b{ font-size:14px; }
+  .sb-pct-up{ color:#c23b3b; font-weight:800; }
+  .sb-pct-down{ color:#2a67c7; font-weight:800; }
+  .sb-pct-flat,.sb-pct-na{ color:#8a7f6c; font-weight:700; }
+  .sb-addr{ font-size:10.5px; color:#9c9184; }
 </style>
 </head>
 <body>
 
   <div id="banner">
-    이건 <b>실제 사이트가 아니라 배경 스타일만 확인하는 3D 시안</b>입니다 — 마커·팝업·줌·비교표 연동 같은 지금 기능은
-    아직 하나도 없고, "지도를 입체로 기울여서 지형이 실제로 튀어나오게 보이면 어떤 느낌인지"만 빠르게 보기 위한 것입니다.
+    이건 <b>실제 사이트가 아니라 배경 스타일만 확인하는 3D 시안</b>입니다 — 줌·비교표 연동 같은 기능은
+    아직 없고, "지도를 입체로 기울여서 지형이 실제로 튀어나오게 보이면 어떤 느낌인지"만 빠르게 보기 위한 것입니다.
     실제 QGIS 지형 데이터가 아니라 Mapbox가 기본 제공하는 전 세계 고도 데이터(진짜 표고 기반)로 지형을 세웠고, 건물도 높이대로 입체로 세웠습니다.
     시점 회전은 아래 "회전" 버튼을 쓰시거나, <b>마우스 휠(가운데) 버튼을 누른 채 드래그</b>하면 스케치업처럼 자유롭게 돌아갑니다. <b>Shift + 휠버튼 드래그</b>는 회전 대신 화면을 이동시킵니다(오른쪽 버튼 드래그·두 손가락 드래그도 계속 됩니다).
     아래 <b>"드론 비행"</b>은 지점들을 자동으로 순회하며 카메라가 날아다니는 연출입니다. <b>인천계양은 실제로 조사한 6개 단지</b>(엘리움·박촌 풍림아이원·코아루 센트럴파크·효성해링턴 플레이스·힐스테이트 자이 계양·롯데캐슬 파크시티)를 순서대로 도는 실제 좌표이며, 롯데캐슬 파크시티만 미착공이라 설계 스펙 기반 근사 매스로 표시했습니다. <b>부산·전국은 아직 실제 조사·순위 데이터가 아니라 화면 데모용 샘플 좌표</b>입니다.
+    <br><b>이번에 추가:</b> 인천계양 비교단지 마커(건물 위에 뜬 색깔 핀, 실제 Supabase 데이터 실시간 연동)를 클릭하면 준공년도·세대수·최근 실거래·최초분양가 대비 등락률이 담긴 말풍선이 뜹니다 — "건물(매스) 클릭 → 팝업"은 아직 없고 마커 클릭만 됩니다.
   </div>
 
   <div id="controls">
@@ -864,6 +904,261 @@
     flatBtn.addEventListener("click", function(){
       if (droneActive) stopDroneTour();
     });
+
+    // ============================================================
+    // 10차(2026-09-24): 인천 17개 비교단지 — Supabase 실거래 연동 마커 + 말풍선 팝업 (파일럿)
+    // 대표님 요청: "3D는 마커가 건물에 따라다니고, 마커/건물 클릭하면 만화 대화창처럼 정보가 뜨게"
+    // + "2D는 그대로 두고 3D를 추가" + "마커·팝업 심는 건 인천 17개 비교단지 전체부터".
+    // 이번 라운드 범위: 마커 클릭 → 팝업만 구현(마커는 100% 신뢰 가능한 좌표 기반).
+    // "건물(매스) 클릭 → 팝업"은 COMPARISON_TOWERS_RAW 박스들이 지금 이름 정보를 안 갖고 있어서
+    // (좌표만 있는 사각 매스 배열이라 어느 박스가 어느 단지인지 코드에서 못 찾음) 이번엔 보류 —
+    // 각 박스에 단지명을 심는 별도 작업이 필요해서 다음 라운드로 미룸(대표님께 별도 보고).
+    // 2D 사이트(index.html)의 loadDataFromSupabase/ageBucket/computeTxPctChange 로직과 최대한
+    // 동일하게 맞춰서, 나중에 3D도 같은 Supabase 데이터를 보고 있다는 걸 신뢰할 수 있게 했습니다.
+    // ------------------------------------------------------------
+    // 마커 좌표(anchor)는 이전 라운드에서 브이월드 지오코딩으로 확보해둔 인천계양 단지 좌표(대부분)와,
+    // 이번 라운드에 새로 정밀 확인한 "계양 롯데캐슬 파크시티 2단지"(미착공 부지 재측량) 좌표를 씀.
+    // 2개는 이번에도 못 심음:
+    //  - 유호: 대표님이 "10년차 넘는 건물이라 조사에서 빼달라"고 명시적으로 지시하셔서 제외(스킵 목록).
+    //  - 브라운스톤계양스카이: 이번 라운드에도 브이월드 지번주소 지오코딩·호갱노노·주소정보누리집·
+    //    카카오맵 검색·브이월드 WFS 명칭검색까지 다 시도했지만 정밀좌표를 못 구함 — 좌표 확보 전까지 생략.
+    // ------------------------------------------------------------
+    var INCHEON_MARKER_ANCHORS = {
+    "e편한세상 계양더프리미어": [126.71235344969799, 37.52830297605872],
+    "계산 현대": [126.73053439903109, 37.537476010820285],
+    "계양 롯데캐슬 파크시티 1단지": [126.728, 37.548],
+    "계양 롯데캐슬 파크시티 2단지": [126.70309, 37.530341],
+    "계양 효성해링턴 플레이스": [126.74545565227126, 37.52799159081856],
+    "계양동도센트리움골든베이": [126.71014464713517, 37.52978232464622],
+    "계양신도시 카이브 유보라": [126.737, 37.567],
+    "계양하늘채파크포레": [126.74042736847156, 37.55386557934415],
+    "계양한양수자인": [126.74649924863158, 37.554717438865914],
+    "동보1차": [126.72684051008792, 37.526792273753756],
+    "두산위브더제니스센트럴계양": [126.7325, 37.5445],
+    "서운동경남아너스빌": [126.74589320543791, 37.53748309013301],
+    "용종마을 신대진": [126.74180451037086, 37.54290263291195],
+    "용종마을 중앙": [126.74027099061547, 37.542500152695524],
+    "유호": [126.73526976274059, 37.54663536605875],
+    "인천 작전 에피트": [126.728, 37.538],
+    "인천 작전 한라비발디": [126.730177, 37.525014],
+    "인천계양 A2블록(LH 공공분양)": [126.734, 37.563],
+    "인천계양 A6블록(LH 공공분양)": [126.756199, 37.552654],
+    "인천계양 A9블록 신혼희망타운(LH)": [126.765477, 37.556998],
+    "인천계양 코아루 센트럴파크": [126.73885637881835, 37.54173599601243],
+    "작전 한신": [126.72794532497325, 37.52743759130776],
+    "작전역 베네하임 더윈": [126.72571369343842, 37.52716700368554],
+    "제일풍경채 계양 위너스카이 1단지": [126.726, 37.551],
+    "제일풍경채 계양 위너스카이 2단지": [126.727, 37.552],
+    "초정마을 두산·쌍용": [126.74054952567452, 37.54001215673766],
+    "초정마을 하나": [126.74306735041628, 37.54002867709432],
+    "한화꿈에그린": [126.74718445021, 37.55560149898959],
+    "힐스테이트 자이 계양": [126.71866689720031, 37.532322082683926]
+    };
+    var INCHEON_MARKER_SKIP_NAMES = { "유호": true };
+
+    var SUPABASE_URL_3D = "https://ckczwpyopiihyumjgwjl.supabase.co";
+    var SUPABASE_ANON_KEY_3D = "sb_publishable_qw-URFALkEDIOrYhzZ4aSg_igF6nK_e";
+    var PYEONG_SQM_3D = 3.305785;
+    var AGE_COLORS_3D = { under1:"#e0a728", "1to5":"#2f6fd6", "5to10":"#12a39c", over10:"#9c6b3f", presale:"#7d5ba6" };
+
+    function supabaseFetchAll3D(table, selectCols, extraQuery, orderCol){
+      var pageSize = 1000;
+      function fetchPage(from){
+        var to = from + pageSize - 1;
+        var url = SUPABASE_URL_3D + "/rest/v1/" + table + "?select=" + selectCols + (extraQuery || "") + "&order=" + (orderCol || "id");
+        return fetch(url, {
+          headers: { apikey: SUPABASE_ANON_KEY_3D, Authorization: "Bearer " + SUPABASE_ANON_KEY_3D, Range: from + "-" + to }
+        }).then(function(res){
+          if (!res.ok) { throw new Error(table + " 조회 실패 (HTTP " + res.status + ")"); }
+          return res.json().then(function(rows){
+            if (!rows || rows.length < pageSize) return rows || [];
+            return fetchPage(from + pageSize).then(function(more){ return rows.concat(more); });
+          });
+        });
+      }
+      return fetchPage(0);
+    }
+
+    // index.html의 ageBucket()과 동일한 규칙(2026 기준, 준공년도 null=준공예정).
+    function ageBucket3D(buildYear){
+      if (buildYear === null || buildYear === undefined) return { key:"presale", label:"준공예정", color: AGE_COLORS_3D.presale };
+      var age = 2026 - buildYear;
+      if (age < 1) return { key:"under1", label:"1년 미만", color: AGE_COLORS_3D.under1 };
+      if (age < 5) return { key:"1to5", label:"1~5년", color: AGE_COLORS_3D["1to5"] };
+      if (age <= 10) return { key:"5to10", label:"5~10년", color: AGE_COLORS_3D["5to10"] };
+      return { key:"over10", label:"10년 초과", color: AGE_COLORS_3D.over10 };
+    }
+
+    function pctChange3D(txAmt, txArea, baseAmt, baseArea){
+      if (!baseAmt || !baseArea || !txAmt || !txArea) return null;
+      var txPerArea = txAmt / txArea, basePerArea = baseAmt / baseArea;
+      if (!basePerArea) return null;
+      return (txPerArea / basePerArea - 1) * 100;
+    }
+
+    function matchUnitTypeBaseline3D(txArea, unitTypes){
+      if (!txArea || !unitTypes || !unitTypes.length) return null;
+      var candidates = unitTypes.filter(function(u){ return u.areaSqm && u.priceAmt; });
+      if (!candidates.length) return null;
+      var minDiff = Infinity;
+      candidates.forEach(function(u){ var d = Math.abs(u.areaSqm - txArea); if (d < minDiff) minDiff = d; });
+      if (minDiff > 5) return null;
+      var matched = candidates.filter(function(u){ return Math.abs(u.areaSqm - txArea) - minDiff < 0.05; });
+      var sumPerArea = 0;
+      matched.forEach(function(u){ sumPerArea += (u.priceAmt / u.areaSqm); });
+      var isProxy = matched.some(function(u){ return u.note && u.note.indexOf("분양가 아님") !== -1; });
+      return { pricePerArea: sumPerArea / matched.length, isProxy: isProxy };
+    }
+
+    function computeTxPctChange3D(t, c){
+      if (c.baselineAmt && c.baselineArea) {
+        return { pct: pctChange3D(t.amt, t.area, c.baselineAmt, c.baselineArea), isProxy: !!c.presaleIsProxy };
+      }
+      var m = matchUnitTypeBaseline3D(t.area, c.unitTypes);
+      if (!m || !t.amt || !t.area) return { pct: null, isProxy: false };
+      var pct = (t.amt / t.area / m.pricePerArea - 1) * 100;
+      return { pct: pct, isProxy: m.isProxy };
+    }
+
+    function computeEntitySummary3D(entity){
+      var txs = (entity.txHistory || []).filter(function(t){ return t.amt && t.area; });
+      if (!txs.length) return null;
+      txs = txs.slice().sort(function(a, b){
+        var ka = (a.y||0)*400 + (a.m||0)*31 + (a.d||0);
+        var kb = (b.y||0)*400 + (b.m||0)*31 + (b.d||0);
+        return kb - ka;
+      });
+      var latest = txs[0];
+      var py = latest.amt / (latest.area / PYEONG_SQM_3D);
+      var cmp = computeTxPctChange3D(latest, entity);
+      var dateLabel = latest.y ? (latest.y + "." + (latest.m ? String(latest.m).padStart(2, "0") : "?")) : "-";
+      return { pricePerPy: py, pct: cmp.pct, dateLabel: dateLabel, txCount: txs.length };
+    }
+
+    function escHtml3D(s){
+      return String(s == null ? "" : s).replace(/[&<>"']/g, function(ch){
+        return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch];
+      });
+    }
+
+    // 말풍선 팝업 내용 — 2D 우측 패널(openComparisonPanel)의 핵심 요약만 압축.
+    function cmpxSpeechBubbleHtml(c){
+      var age = ageBucket3D(c.buildYear);
+      var summary = computeEntitySummary3D(c);
+      var sub = (c.buildYear ? (c.buildYear + "년 준공") : "준공예정") + (c.landmark ? (" · " + c.landmark) : "");
+      var priceHtml;
+      if (summary) {
+        var hasPct = summary.pct !== null && summary.pct !== undefined && !isNaN(summary.pct);
+        var pctCls = !hasPct ? "sb-pct-na" : (summary.pct > 0 ? "sb-pct-up" : (summary.pct < 0 ? "sb-pct-down" : "sb-pct-flat"));
+        var pctText = !hasPct ? "비교불가" : ((summary.pct > 0 ? "+" : "") + summary.pct.toFixed(1) + "%");
+        priceHtml = '<div class="sb-price">최근 실거래(' + escHtml3D(summary.dateLabel) + ') <b>' +
+          Math.round(summary.pricePerPy).toLocaleString() + '만원/평</b><br>최초 분양가 대비 ' +
+          '<span class="' + pctCls + '">' + pctText + '</span> · 총 ' + summary.txCount + '건</div>';
+      } else {
+        priceHtml = '<div class="sb-price" style="color:#9c9184;">등록된 실거래 데이터 없음</div>';
+      }
+      return '' +
+        '<div class="sb-header" style="background:' + age.color + ';">' +
+          '<span class="sb-name">' + escHtml3D(c.name) + '</span>' +
+          '<span class="sb-age">' + age.label + '</span>' +
+        '</div>' +
+        '<div class="sb-body">' +
+          '<div class="sb-sub">' + escHtml3D(sub) + '</div>' +
+          '<div class="sb-stats">' +
+            '<div class="sb-stat"><b>' + (c.units ? Number(c.units).toLocaleString() : "-") + '</b><span>세대</span></div>' +
+            '<div class="sb-stat"><b>' + (c.maxFloorObs || "-") + '</b><span>관측 최고층</span></div>' +
+            '<div class="sb-stat"><b>' + ((c.txHistory || []).length) + '</b><span>실거래 건수</span></div>' +
+          '</div>' +
+          priceHtml +
+          '<div class="sb-addr">' + escHtml3D(c.address || "") + '</div>' +
+        '</div>';
+    }
+
+    var comparisonComplexMarkers = [];
+
+    function loadIncheonComparisonMarkers(){
+      var complexCols = ["id","name","address","build_year","units","landmark","max_floor_obs",
+        "baseline_amt","baseline_area","presale_is_proxy"].join(",");
+      var txCols = "id,complex_id,transaction_type,area_sqm,floor,price_man,contract_date";
+      var unitTypeCols = "id,complex_id,type_name,area_sqm,units_count,price_amt,note";
+
+      Promise.all([
+        supabaseFetchAll3D("complexes", complexCols, "&role=eq.comparison", "name"),
+        supabaseFetchAll3D("transactions", txCols, "", "id"),
+        supabaseFetchAll3D("complex_unit_types", unitTypeCols, "", "type_name").catch(function(){ return []; })
+      ]).then(function(results){
+        var complexRows = results[0] || [];
+        var txRows = results[1] || [];
+        var unitTypeRows = results[2] || [];
+
+        var unitTypesByComplex = {};
+        unitTypeRows.forEach(function(u){
+          (unitTypesByComplex[u.complex_id] = unitTypesByComplex[u.complex_id] || []).push({
+            typeName: u.type_name,
+            areaSqm: (u.area_sqm === null || u.area_sqm === undefined) ? null : Number(u.area_sqm),
+            priceAmt: (u.price_amt === null || u.price_amt === undefined) ? null : Number(u.price_amt),
+            note: u.note || null
+          });
+        });
+        var txByComplex = {};
+        txRows.forEach(function(t){ (txByComplex[t.complex_id] = txByComplex[t.complex_id] || []).push(t); });
+
+        var placed = 0, skippedNoAnchor = [];
+        complexRows.forEach(function(row){
+          if (INCHEON_MARKER_SKIP_NAMES[row.name]) return;
+          var anchor = INCHEON_MARKER_ANCHORS[row.name];
+          if (!anchor) { skippedNoAnchor.push(row.name); return; }
+
+          var rawTx = txByComplex[row.id] || [];
+          var txs = rawTx.map(function(t){
+            var parts = (t.contract_date || "").split("-");
+            return {
+              amt: (t.price_man === null || t.price_man === undefined) ? null : Number(t.price_man),
+              area: (t.area_sqm === null || t.area_sqm === undefined) ? null : Number(t.area_sqm),
+              y: parts[0] ? parseInt(parts[0], 10) : null,
+              m: parts[1] ? parseInt(parts[1], 10) : null,
+              d: parts[2] ? parseInt(parts[2], 10) : null
+            };
+          });
+          var c = {
+            id: row.id, name: row.name, address: row.address, buildYear: row.build_year,
+            units: row.units, landmark: row.landmark || "", maxFloorObs: row.max_floor_obs || null,
+            baselineAmt: (row.baseline_amt === null || row.baseline_amt === undefined) ? null : Number(row.baseline_amt),
+            baselineArea: (row.baseline_area === null || row.baseline_area === undefined) ? null : Number(row.baseline_area),
+            presaleIsProxy: !!row.presale_is_proxy,
+            unitTypes: unitTypesByComplex[row.id] || [],
+            txHistory: txs
+          };
+          var age = ageBucket3D(c.buildYear);
+          var floors = c.maxFloorObs || 15;
+          var altitude = floors * 3 + 6; // buildTowersGeoJSON과 같은 "층당 3m" 기준 + 여유 6m 위에 마커가 뜸
+
+          var wrap = document.createElement("div");
+          wrap.className = "cmpx-marker-wrap";
+          var pin = document.createElement("div");
+          pin.className = "cmpx-marker-pin";
+          pin.style.setProperty("--cmpx-color", age.color);
+          wrap.appendChild(pin);
+
+          var popup = new mapboxgl.Popup({ offset: 30, closeButton: true, className: "cmpx-popup", maxWidth: "250px" })
+            .setHTML(cmpxSpeechBubbleHtml(c));
+
+          var marker = new mapboxgl.Marker({
+            element: wrap, altitude: altitude, anchor: "bottom",
+            pitchAlignment: "map", rotationAlignment: "viewport"
+          }).setLngLat(anchor).setPopup(popup).addTo(map);
+
+          comparisonComplexMarkers.push(marker);
+          placed++;
+        });
+
+        console.log("[비교단지 마커] " + placed + "개 배치 완료. 좌표 없어 생략: " + (skippedNoAnchor.join(", ") || "없음"));
+      }).catch(function(err){
+        console.error("인천 비교단지 마커 로딩 실패:", err);
+      });
+    }
+
+    if (map.loaded()) { loadIncheonComparisonMarkers(); } else { map.once("load", loadIncheonComparisonMarkers); }
   }
 </script>
 
