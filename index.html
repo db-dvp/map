@@ -502,6 +502,10 @@
       } catch (e) { /* road source-layer가 다른 이름을 쓰는 스타일이면 조용히 무시 */ }
 
       // 4) 3D 건물 (Mapbox 기본 벡터 타일의 건물 높이 데이터 사용)
+      // 2026-09-24 밤: 세영님 요청으로 이 레이어 자체를 꺼둠(visibility: none) — 마스킹으로 가려도
+      // 줌인 직후 잠깐 겹쳐 보이는 문제가 있었는데, 아예 안 그리면 그 문제 자체가 없어짐.
+      // 이제 화면에 보이는 건물은 전부 우리가 만든 레이어(브이월드 실측 wide-area-buildings /
+      // comparison-complex-towers 등)뿐이고, Mapbox 자체 건물 데이터는 쓰지 않음.
       if (!map.getLayer("3d-buildings")) {
         map.addLayer({
           id: "3d-buildings",
@@ -509,6 +513,7 @@
           "source-layer": "building",
           type: "fill-extrusion",
           minzoom: 13,
+          layout: { visibility: "none" },
           paint: {
             "fill-extrusion-color": "#cfc6b8",
             "fill-extrusion-height": ["coalesce", ["get", "height"], 8],
