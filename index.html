@@ -4,8 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>지도 엔진 시안 — 콘타 스타일 3D (Mapbox, 배경만)</title>
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<!-- 2026-09-24 밤(9차): 세영님이 "아직도 산에 박혀있다"고 재차 지적하심 — 원인을 다시 찾아보니, 건물을
+     지형 경사에 맞춰 세우는 fill-extrusion-base-alignment/height-alignment 두 속성은 Mapbox GL JS
+     v3.8.0 이상에서만 동작하는데(공식 문서 확인), 이 파일이 그보다 낮은 v3.7.0을 쓰고 있어서 6차에서
+     추가한 설정이 조용히 무시되고 있었음(에러 없이 그냥 적용이 안 되는 방식이라 지금까지 못 찾았음).
+     최신 안정 버전(v3.30.0)으로 올려서 이 속성들이 실제로 동작하도록 수정. -->
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.css" rel="stylesheet">
 <style>
   :root{
     --paper:#f5f1e9; --paper-raised:#ffffff; --ink:#202a5d; --ink-soft:#5c6790;
