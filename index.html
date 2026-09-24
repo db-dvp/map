@@ -135,14 +135,11 @@
 
   var DEFAULT_EXAG = 1.8;
 
-  // 우리가 실제로 조사한(브이월드 실측 데이터) 아파트 매스 색 — 기본 회색 건물(#cfc6b8)과 뚜렷이 구분되도록
-  // 채도 높은 테라코타 톤으로 지정. 이전 "#b98a5e"는 회색·지형 배경과 비슷해 눈에 잘 안 띈다는 피드백을 반영.
-  var REAL_APT_COLOR = "#c1440e";
+  // 2026-09-24: "실제 조사 데이터라서 눈에 띄게 구분"하던 기존 방침을 폐기 — 맵박스 기본 3D 건물 색
+  // (#cfc6b8)과 완전히 동일하게 통일. 건물이 실측인지 아닌지로 색을 다르게 주지 않는다.
+  var REAL_APT_COLOR = "#cfc6b8";
 
-  // 우리가 "특별히 조사한" 6개 단지는 아니지만, 그 주변에 실제로 존재하는 다른 건물들(브이월드 실측,
-  // 지상 8층 이상)을 "배경을 채워주는 매스"로 깔아주는 색 — 테라코타(REAL_APT_COLOR)만큼 튀지 않으면서도
-  // 기본 회색(#cfc6b8)보다는 확실히 구분되는 중간 톤의 탁한 카키/샌드 색으로 지정.
-  var WIDE_AREA_COLOR = "#a89a78";
+  var WIDE_AREA_COLOR = "#cfc6b8";
 
   var VIEWS = {
     incheon: { center: [126.741, 37.544], zoom: 14.2, pitch: 62, bearing: -18 },
@@ -502,29 +499,10 @@
       }
 
       // 3-2) 넓은 범위(BOX)의 실제 건물들 — "배경을 채워주는" 용도. 우리가 특별히 조사한 6개
-      //      단지보다 먼저(코드상 먼저 addLayer) 깔아서, 나중에 추가되는 조사 단지 색(테라코타)이
+      //      단지보다 먼저(코드상 먼저 addLayer) 깔아서, 나중에 추가되는 조사 단지 색이
       //      항상 그 위에 그려지도록 한다 — 겹치는 자리에서도 "우리가 조사한 곳"이 우선 보인다.
-      if (!map.getSource("wide-area-buildings-far")) {
-        map.addSource("wide-area-buildings-far", {
-          type: "geojson",
-          data: buildTowersGeoJSONFar(WIDE_AREA_BUILDINGS_RAW, FAR_MIN_SIZE_DEG)
-        });
-      }
-      if (!map.getLayer("wide-area-buildings-far")) {
-        map.addLayer({
-          id: "wide-area-buildings-far",
-          source: "wide-area-buildings-far",
-          type: "fill-extrusion",
-          minzoom: 0,
-          maxzoom: FAR_SWITCH_ZOOM,
-          paint: {
-            "fill-extrusion-color": WIDE_AREA_COLOR,
-            "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 5, ["*", ["get", "height"], 40], 9, ["*", ["get", "height"], 8], 14, ["*", ["get", "height"], 1]],
-            "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": 0.9
-          }
-        }, labelLayerId || undefined);
-      }
+      // 2026-09-24: 줌아웃 시 임의로 부풀리던 -far 레이어(높이 배율 + 최소 크기 확대)를 완전히
+      // 제거하고, 실제 크기·실제 높이 그대로만 그린다(맵박스 기본 3d-buildings와 동일한 방식).
       if (!map.getSource("wide-area-buildings")) {
         map.addSource("wide-area-buildings", {
           type: "geojson",
@@ -536,10 +514,10 @@
           id: "wide-area-buildings",
           source: "wide-area-buildings",
           type: "fill-extrusion",
-          minzoom: FAR_SWITCH_ZOOM,
+          minzoom: 0,
           paint: {
             "fill-extrusion-color": WIDE_AREA_COLOR,
-            "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 5, ["*", ["get", "height"], 40], 9, ["*", ["get", "height"], 8], 14, ["*", ["get", "height"], 1]],
+            "fill-extrusion-height": ["coalesce", ["get", "height"], 8],
             "fill-extrusion-base": 0,
             "fill-extrusion-opacity": 0.9
           }
@@ -547,29 +525,7 @@
       }
 
       // 4-1) 인천계양 A21 인근 실제 아파트 건물(국토부 도로명주소 건물, 지상 8층 이상) 레이어 추가
-      //      - far(부풀린 버전)는 줌 0~FAR_SWITCH_ZOOM, near(실제 크기)는 FAR_SWITCH_ZOOM 이상에서만 보여서
-      //        줌아웃해도 매스 자체가 계속 화면에 남아있고, 가까이 가면 실제 크기로 자연스럽게 바뀐다.
-      if (!map.getSource("gyeyang-apt-towers-far")) {
-        map.addSource("gyeyang-apt-towers-far", {
-          type: "geojson",
-          data: buildTowersGeoJSONFar(GYEYANG_APT_TOWERS_RAW, FAR_MIN_SIZE_DEG)
-        });
-      }
-      if (!map.getLayer("gyeyang-apt-towers-far")) {
-        map.addLayer({
-          id: "gyeyang-apt-towers-far",
-          source: "gyeyang-apt-towers-far",
-          type: "fill-extrusion",
-          minzoom: 0,
-          maxzoom: FAR_SWITCH_ZOOM,
-          paint: {
-            "fill-extrusion-color": REAL_APT_COLOR,
-            "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 5, ["*", ["get", "height"], 40], 9, ["*", ["get", "height"], 8], 14, ["*", ["get", "height"], 1]],
-            "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": 1
-          }
-        }, labelLayerId || undefined);
-      }
+      //      2026-09-24: -far 부풀리기 제거, 실제 크기·실제 높이 그대로만 그린다.
       if (!map.getSource("gyeyang-apt-towers")) {
         map.addSource("gyeyang-apt-towers", {
           type: "geojson",
@@ -581,10 +537,10 @@
           id: "gyeyang-apt-towers",
           source: "gyeyang-apt-towers",
           type: "fill-extrusion",
-          minzoom: FAR_SWITCH_ZOOM,
+          minzoom: 0,
           paint: {
-            "fill-extrusion-color": REAL_APT_COLOR, // 실제 조사 데이터 건물은 눈에 띄는 테라코타색으로 구분
-            "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 5, ["*", ["get", "height"], 40], 9, ["*", ["get", "height"], 8], 14, ["*", ["get", "height"], 1]],
+            "fill-extrusion-color": REAL_APT_COLOR,
+            "fill-extrusion-height": ["coalesce", ["get", "height"], 8],
             "fill-extrusion-base": 0,
             "fill-extrusion-opacity": 1
           }
@@ -593,27 +549,6 @@
 
       // 4-1-b) 드론비행 6개 지점 중 나머지 4곳(작전역/힐스테이트자이계양, 효성해링턴플레이스,
       //        박촌역/풍림아이원, 임학역/코아루센트럴파크)의 실제 아파트 건물 레이어.
-      if (!map.getSource("other-apt-towers-far")) {
-        map.addSource("other-apt-towers-far", {
-          type: "geojson",
-          data: buildTowersGeoJSONFar(OTHER_APT_TOWERS_RAW, FAR_MIN_SIZE_DEG)
-        });
-      }
-      if (!map.getLayer("other-apt-towers-far")) {
-        map.addLayer({
-          id: "other-apt-towers-far",
-          source: "other-apt-towers-far",
-          type: "fill-extrusion",
-          minzoom: 0,
-          maxzoom: FAR_SWITCH_ZOOM,
-          paint: {
-            "fill-extrusion-color": REAL_APT_COLOR,
-            "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 5, ["*", ["get", "height"], 40], 9, ["*", ["get", "height"], 8], 14, ["*", ["get", "height"], 1]],
-            "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": 1
-          }
-        }, labelLayerId || undefined);
-      }
       if (!map.getSource("other-apt-towers")) {
         map.addSource("other-apt-towers", {
           type: "geojson",
@@ -625,10 +560,10 @@
           id: "other-apt-towers",
           source: "other-apt-towers",
           type: "fill-extrusion",
-          minzoom: FAR_SWITCH_ZOOM,
+          minzoom: 0,
           paint: {
             "fill-extrusion-color": REAL_APT_COLOR,
-            "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 5, ["*", ["get", "height"], 40], 9, ["*", ["get", "height"], 8], 14, ["*", ["get", "height"], 1]],
+            "fill-extrusion-height": ["coalesce", ["get", "height"], 8],
             "fill-extrusion-base": 0,
             "fill-extrusion-opacity": 1
           }
@@ -637,27 +572,6 @@
 
       // 4-1-c) 계양 롯데캐슬 파크시티 — 아직 미착공이라 실제 데이터가 없는 "근사 매스".
       //        다른 실제 건물과 구분되도록 파란빛 회색 + 더 투명하게 표시하고, 클릭 시 안내 팝업을 띄운다.
-      if (!map.getSource("lottecastle-approx-far")) {
-        map.addSource("lottecastle-approx-far", {
-          type: "geojson",
-          data: buildTowersGeoJSONFar(LOTTE_CASTLE_APPROX_RAW, FAR_MIN_SIZE_DEG)
-        });
-      }
-      if (!map.getLayer("lottecastle-approx-far")) {
-        map.addLayer({
-          id: "lottecastle-approx-far",
-          source: "lottecastle-approx-far",
-          type: "fill-extrusion",
-          minzoom: 0,
-          maxzoom: FAR_SWITCH_ZOOM,
-          paint: {
-            "fill-extrusion-color": "#7f97b8",
-            "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 5, ["*", ["get", "height"], 40], 9, ["*", ["get", "height"], 8], 14, ["*", ["get", "height"], 1]],
-            "fill-extrusion-base": 0,
-            "fill-extrusion-opacity": 0.55
-          }
-        }, labelLayerId || undefined);
-      }
       if (!map.getSource("lottecastle-approx")) {
         map.addSource("lottecastle-approx", {
           type: "geojson",
@@ -669,10 +583,10 @@
           id: "lottecastle-approx",
           source: "lottecastle-approx",
           type: "fill-extrusion",
-          minzoom: FAR_SWITCH_ZOOM,
+          minzoom: 0,
           paint: {
-            "fill-extrusion-color": "#7f97b8",
-            "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 5, ["*", ["get", "height"], 40], 9, ["*", ["get", "height"], 8], 14, ["*", ["get", "height"], 1]],
+            "fill-extrusion-color": "#cfc6b8",
+            "fill-extrusion-height": ["coalesce", ["get", "height"], 8],
             "fill-extrusion-base": 0,
             "fill-extrusion-opacity": 0.55
           }
@@ -680,7 +594,7 @@
       }
       if (!map.__lotteCastlePopupBound) {
         map.__lotteCastlePopupBound = true;
-        ["lottecastle-approx", "lottecastle-approx-far"].forEach(function(lyr){
+        ["lottecastle-approx"].forEach(function(lyr){
           map.on("click", lyr, function(){
             new mapboxgl.Popup({ closeOnClick: true })
               .setLngLat([126.70404, 37.53462])
@@ -692,14 +606,23 @@
         });
       }
 
-      // 4-2) 위 사각 범위들 + 넓은 범위 건물 375개 각각의 자리 안쪽은 기본(회색) 3D 건물을 꺼서,
-      //      같은 건물이 회색과 겹쳐 보이지 않게 한다(지상 8층 미만 건물은 마스킹 대상이 아니라 그대로
-      //      기본 회색으로 남는다 — 우리가 채워 넣은 건 8층 이상뿐이기 때문).
+      // 4-2) 위 사각 범위들 + 넓은 범위 커버리지(브이월드로 실제 조사한 계양구 전체 범위) 안쪽은
+      //      기본(회색) 3D 건물을 꺼서, 같은 건물이 회색과 겹쳐 보이지 않게 한다.
+      // 2026-09-24: 건물 10,529개를 하나하나 개별 마스크로 걸던 방식(375개 시절 코드가 그대로 남아있던
+      // 것)을 폐기 — 표현식이 너무 무거워서 실제로는 마스킹이 제대로 안 먹히고 있었음. 브이월드 페치
+      // 범위(계양구 전체 + 여유분, 약 9km 반경 정사각형) 전체를 감싸는 사각형 폴리곤 1개로 교체.
       try {
-        var wideAreaMasks = WIDE_AREA_BUILDINGS_RAW.map(function(item){
-          return { type: "Polygon", coordinates: [item[1]] };
-        });
-        var allMasks = [GYEYANG_APT_MASK].concat(OTHER_APT_MASKS, wideAreaMasks);
+        var WIDE_AREA_BBOX = {
+          type: "Polygon",
+          coordinates: [[
+            [126.65065, 37.46633],
+            [126.85465, 37.46633],
+            [126.85465, 37.62833],
+            [126.65065, 37.62833],
+            [126.65065, 37.46633]
+          ]]
+        };
+        var allMasks = [GYEYANG_APT_MASK].concat(OTHER_APT_MASKS, [WIDE_AREA_BBOX]);
         var withinExprs = allMasks.map(function(m){ return ["within", m]; });
         map.setFilter("3d-buildings", ["!", ["any"].concat(withinExprs)]);
       } catch (e) {
